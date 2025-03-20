@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>听写小工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #word-list, #login-section, #history-section {
+            margin-bottom: 20px;
+        }
+        #word-list textarea {
+            width: 100%;
+            height: 100px;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        .admin-only {
+            display: none;
+        }
+        #history-list {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>听写小工具</h1>
+    <div id="login-section">
+        <label for="login-password">管理员密码：</label>
+        <input type="password" id="login-password" placeholder="请输入管理员密码">
+        <button onclick="login()">登录</button>
+    </div>
+    <div id="word-list" class="admin-only">
+        <label for="words">请输入或修改词语（用顿号、逗号或句号分隔）：</label><br>
+        <textarea id="words" placeholder="例如：苹果、香蕉、cat、dog"></textarea>
+        <button onclick="uploadWords()">上传词语</button>
+    </div>
+    <div id="history-section" class="admin-only">
+        <label>历史记录：</label>
+        <div id="history-list"></div>
+    </div>
+    <div id="controls">
+        <button onclick="playCurrentWord()">播放</button>
+        <button onclick="prevWord()">上一个</button>
+        <button onclick="nextWord()">下一个</button>
+    </div>
+
+    <script>
+        let words = [];
+        let currentIndex = 0;
+        const adminPassword = "123456"; // 管理员密码
+        let isAdminLoggedIn = false;
+        let history = []; // 历史记录
+
+        // 管理员登录
+        function login() {
+            const pwd = document.getElementById('login-password').value;
+            if (pwd === adminPassword) {
+                isAdminLoggedIn = true;
+                alert('管理员登录成功！');
+                // 显示管理员功能
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+                // 加载当前词语到输入框
+                document.getElementById('words').value = words.join('、');
+                // 加载历史记录
+                loadHistory();
+            } else {
+                alert('密码错误！');
+            }
+        }
+
+        // 上传或修改词语
+        function uploadWords() {
+            if (!isAdminLoggedIn) {
+                alert('请先登录管理员！');
+                return;
+            }
+            const input = document.getElementById('words').value;
+            // 使用正则表达式分割词语（支持顿号、逗号、句号）
+            words = input.split(/[、，。]/).filter(word => word.trim() !== '');
+            if (words.length === 0) {
+                alert('请输入有效的词语！');
+                return;
+            }
+            alert('词语已上传！');
+            // 保存到历史记录
+            saveToHistory(words);
+            // 自动跳转到非管理员模式
+            isAdminLoggedIn = false;
+            document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            // 播放最新的词语
+            currentIndex = 0;
+            playCurrentWord();
+        }
+
+        // 保存到历史记录
+        function saveToHistory(currentWords) {
+            history.push([...currentWords]); // 保存当前词语列表的副本
+            if (history.length > 10) {
+                history.shift(); // 只保留最近10次记录
+            }
+        }
+
+        // 加载历史记录
+        function loadHistory() {
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = ''; // 清空当前显示
+            history.forEach((record, index) => {
+                const recordDiv = document.createElement('div');
+                recordDiv.textContent = `记录 ${index + 1}: ${record.join('、')}`;
+                const loadButton = document.createElement('button');
+                loadButton.textContent = '加载';
+                loadButton.onclick = () => loadRecord(index);
+                recordDiv.appendChild(loadButton);
+                historyList.appendChild(recordDiv);
+            });
+        }
+
+        // 加载某次历史记录
+        function loadRecord(index) {
+            if (index >= 0 && index < history.length) {
+                words = [...history[index]]; // 加载历史记录
+                document.getElementById('words').value = words.join('、'); // 更新输入框
+                alert('历史记录已加载！');
+            }
+        }
+
+        // 播放当前词语
+        function playCurrentWord() {
+            if (words.length === 0) {
+                alert('请先上传词语！');
+                return;
+            }
+            const word = words[currentIndex];
+            const utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'zh-CN'; // 设置为中文
+            utterance.rate = 0.7; // 降低语速为原来的70%
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // 上一个词语
+        function prevWord() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                playCurrentWord(); // 播放上一个词语
+            } else {
+                alert('已经是第一个词语了！');
+            }
+        }
+
+        // 下一个词语
+        function nextWord() {
+            if (currentIndex < words.length - 1) {
+                currentIndex++;
+                playCurrentWord(); // 播放下一个词语
+            } else {
+                alert('已经是最后一个词语了！');
+            }
+        }
+    </script>
+</body>
+</html>
